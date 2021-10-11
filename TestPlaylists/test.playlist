@@ -1,0 +1,47 @@
+<Playlist Version="2.0">
+  <Rule Name="Includes" Match="Any">
+    <Rule Match="All">
+      <Property Name="Solution" />
+      <Rule Match="Any">
+        <Rule Match="All">
+          <Property Name="Project" Value="FriendStorage.UITests" />
+          <Rule Match="Any">
+            <Rule Match="All">
+              <Property Name="Namespace" Value="FriendStorage.UITests.ViewModel" />
+              <Rule Match="Any">
+                <Rule Match="All">
+                  <Property Name="Class" Value="MainViewModelTests" />
+                  <Rule Match="Any">
+                    <Rule Match="All">
+                      <Property Name="TestWithNormalizedFullyQualifiedName" Value="FriendStorage.UITests.ViewModel.MainViewModelTests.ShouldCallTheLoadMethodOfTheNavigationViewModel" />
+                      <Rule Match="Any">
+                        <Property Name="DisplayName" Value="ShouldCallTheLoadMethodOfTheNavigationViewModel" />
+                      </Rule>
+                    </Rule>
+                  </Rule>
+                </Rule>
+                <Rule Match="All">
+                  <Property Name="Class" Value="NavigationViewModelTests" />
+                  <Rule Match="Any">
+                    <Rule Match="All">
+                      <Property Name="TestWithNormalizedFullyQualifiedName" Value="FriendStorage.UITests.ViewModel.NavigationViewModelTests.ShouldLoadFriends" />
+                      <Rule Match="Any">
+                        <Property Name="DisplayName" Value="ShouldLoadFriends" />
+                      </Rule>
+                    </Rule>
+                    <Rule Match="All">
+                      <Property Name="TestWithNormalizedFullyQualifiedName" Value="FriendStorage.UITests.ViewModel.NavigationViewModelTests.ShouldLoadFriendsOnlyOnce" />
+                      <Rule Match="Any">
+                        <Property Name="DisplayName" Value="ShouldLoadFriendsOnlyOnce" />
+                      </Rule>
+                    </Rule>
+                  </Rule>
+                </Rule>
+              </Rule>
+            </Rule>
+          </Rule>
+        </Rule>
+      </Rule>
+    </Rule>
+  </Rule>
+</Playlist>
