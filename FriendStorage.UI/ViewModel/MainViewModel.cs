@@ -1,10 +1,12 @@
 ﻿using FriendStorage.DataAccess;
+using FriendStorage.UI.Command;
 using FriendStorage.UI.DataProvider;
-using FriendStorage.UI.Event;
+using FriendStorage.UI.Events;
 using Prism.Events;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Windows.Input;
 
 namespace FriendStorage.UI.ViewModel
 {
@@ -12,7 +14,6 @@ namespace FriendStorage.UI.ViewModel
     {
         private readonly Func<IFriendEditViewModel> _friendEditVmCreator;
         private IFriendEditViewModel _selectedFriendEditViewModel;
-        private readonly IEventAggregator _eventAggregator;
         public MainViewModel(
             INavigationViewModel navigationViewModel,
             Func<IFriendEditViewModel> friendEditVmCreator,
@@ -23,8 +24,13 @@ namespace FriendStorage.UI.ViewModel
             _friendEditVmCreator = friendEditVmCreator;
             eventAggregator.GetEvent<OpenFriendEditViewEvent>()
               .Subscribe(OnOpenFriendEditView);
+            CloseFriendTabCommand = new DelegateCommand(OnCloseFriendTabExecute);
+            AddFriendCommand = new DelegateCommand(OnAddFriendExecute);
         }
 
+
+        public ICommand AddFriendCommand { get; private set; }
+        public ICommand CloseFriendTabCommand { get; private set; }
         public INavigationViewModel NavigationViewModel { get; private set; }
         public ObservableCollection<IFriendEditViewModel> FriendEditViewModels { get; set; }
         public IFriendEditViewModel SelectedFriendEditViewModel
@@ -42,16 +48,32 @@ namespace FriendStorage.UI.ViewModel
             NavigationViewModel.Load();
         }
 
+        private void OnCloseFriendTabExecute(object obj)
+        {
+            var friendEditVm = (IFriendEditViewModel)obj;
+            FriendEditViewModels.Remove(friendEditVm);
+        }
+        private void OnAddFriendExecute(object obj)
+        {
+            SelectedFriendEditViewModel = CreateAndLoadFriendEditViewModel(null);
+        }
+
+        private IFriendEditViewModel CreateAndLoadFriendEditViewModel(int? friendId)
+        {
+            var friendEditVm = _friendEditVmCreator();
+            FriendEditViewModels.Add(friendEditVm);
+            friendEditVm.Load(friendId);
+            return friendEditVm;
+        }
+
         private void OnOpenFriendEditView(int friendId)
         {
             var friendEditVm = FriendEditViewModels.SingleOrDefault(vm => vm.Friend.Id == friendId);
+
             if (friendEditVm == null)
             {
-                friendEditVm = _friendEditVmCreator();
-                FriendEditViewModels.Add(friendEditVm);
-                friendEditVm.Load(friendId);
+                SelectedFriendEditViewModel = CreateAndLoadFriendEditViewModel(friendId);
             }
-            SelectedFriendEditViewModel = friendEditVm;
         }
-    }
+    } 
 }
