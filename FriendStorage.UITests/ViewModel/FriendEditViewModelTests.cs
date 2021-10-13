@@ -1,4 +1,5 @@
 ﻿using FriendStorage.UI.DataProvider;
+using FriendStorage.UI.Dialogs;
 using FriendStorage.UI.Events;
 using FriendStorage.UI.ViewModel;
 using FriendStorage.UITests.Extensions;
@@ -16,17 +17,22 @@ namespace FriendStorage.UITests.ViewModel
     public class FriendEditViewModelTests
     {
         private const int _friendId = 5;
+        private Mock<FriendDeletedEvent> _friendDeletedEventMock;
         private Mock<FriendSavedEvent> _friendSavedEventMock;
         private Mock<IEventAggregator> _eventAggregatorMock;
         private Mock<IFriendDataProvider> _dataProviderMock;
+        private Mock<IMessageDialogService> _messageDialogServiceMock;
         private FriendEditViewModel _viewModel;
 
         public FriendEditViewModelTests()
         {
+            _friendDeletedEventMock = new Mock<FriendDeletedEvent>();
             _friendSavedEventMock = new Mock<FriendSavedEvent>();
             _eventAggregatorMock = new Mock<IEventAggregator>();
             _eventAggregatorMock.Setup(ea => ea.GetEvent<FriendSavedEvent>())
                 .Returns(_friendSavedEventMock.Object);
+            _eventAggregatorMock.Setup(ea => ea.GetEvent<FriendDeletedEvent>())
+                .Returns(_friendDeletedEventMock.Object);
 
             _dataProviderMock = new Mock<IFriendDataProvider>();
             _dataProviderMock.Setup(dp => dp.GetFriendById(_friendId))
@@ -36,8 +42,10 @@ namespace FriendStorage.UITests.ViewModel
                     FirstName = "Thomas"
                 });
 
-            _viewModel = new FriendEditViewModel(_dataProviderMock.Object, 
-                _eventAggregatorMock.Object);
+            _messageDialogServiceMock = new Mock<IMessageDialogService>();
+
+            _viewModel = new FriendEditViewModel(_dataProviderMock.Object,
+                _eventAggregatorMock.Object, _messageDialogServiceMock.Object);
         }
 
         [Fact]
@@ -58,7 +66,7 @@ namespace FriendStorage.UITests.ViewModel
                 () => _viewModel.Load(_friendId), nameof(_viewModel.Friend));
 
             Assert.True(fired);
-            
+
         }
 
         [Fact]
@@ -92,6 +100,15 @@ namespace FriendStorage.UITests.ViewModel
         {
             var fired = false;
             _viewModel.SaveCommand.CanExecuteChanged += (s, e) => fired = true;
+            _viewModel.Load(_friendId);
+            Assert.True(fired);
+        }
+
+        [Fact]
+        public void ShouldRaiseCanExecuteChangedForDeleteCommandAfterLoad()
+        {
+            var fired = false;
+            _viewModel.DeleteCommand.CanExecuteChanged += (s, e) => fired = true;
             _viewModel.Load(_friendId);
             Assert.True(fired);
         }
@@ -139,6 +156,93 @@ namespace FriendStorage.UITests.ViewModel
             Assert.False(_viewModel.Friend.IsDeveloper);
 
             _dataProviderMock.Verify(dp => dp.GetFriendById(It.IsAny<int>()), Times.Never);
+        }
+
+        [Fact]
+        public void ShouldEnableDeleteCommandForExistingFriend()
+        {
+            _viewModel.Load(_friendId);
+            Assert.True(_viewModel.DeleteCommand.CanExecute(null));
+        }
+
+        [Fact]
+        public void ShouldDisableDeleteCommandForExistingFriend()
+        {
+            _viewModel.Load(null);
+            Assert.False(_viewModel.DeleteCommand.CanExecute(null));
+        }
+
+        [Fact]
+        public void ShouldDisableDeleteCommandWithoutLoad()
+        {
+            Assert.False(_viewModel.DeleteCommand.CanExecute(null));
+        }
+
+        [Fact]
+        public void ShouldRaiseCanExecuteChangedForDeleteCommandWhenAcceptingChanges()
+        {
+            var fired = false;
+            _viewModel.Load(null);
+            _viewModel.Friend.FirstName = "Changed";
+            // Will change the value of fired if CanExeCuteChanged is raised.
+            _viewModel.DeleteCommand.CanExecuteChanged += (s, e) => fired = true;
+            // Pretending that friend has been saved by changing the friend's has changes to false.
+            _viewModel.Friend.AcceptChanges();
+            Assert.True(fired);
+        }
+
+        [Theory]
+        [InlineData(MessageDialogResult.Yes, 1)]
+        [InlineData(MessageDialogResult.No, 0)]
+        public void ShouldCallDeleteFriendWhenDeleteCommandIsExecuted(
+            MessageDialogResult result, int expectedDeleteFriendCalls)
+        {
+            _viewModel.Load(_friendId);
+
+            _messageDialogServiceMock.Setup(ds => ds.ShowYesNoDialog(It.IsAny<string>(),
+                It.IsAny<string>())).Returns(result);
+
+            _viewModel.DeleteCommand.Execute(null);
+
+            _dataProviderMock.Verify(dp => dp.DeleteFriend(_friendId), 
+                Times.Exactly(expectedDeleteFriendCalls));
+            _messageDialogServiceMock.Verify(ds => ds.ShowYesNoDialog(It.IsAny<string>(),
+                It.IsAny<string>()), Times.Once);
+        }
+
+        [Theory]
+        [InlineData(MessageDialogResult.Yes, 1)]
+        [InlineData(MessageDialogResult.No, 0)]
+        public void ShouldPublishFriendDeletedEventWhenDeleteCommandIsExecuted(
+            MessageDialogResult result, int expectedPublishEventCalls)
+        {
+            _viewModel.Load(_friendId);
+
+            _messageDialogServiceMock.Setup(ds => ds.ShowYesNoDialog(It.IsAny<string>(),
+                It.IsAny<string>())).Returns(result);
+
+            _viewModel.DeleteCommand.Execute(null);
+
+            _friendDeletedEventMock.Verify(e => e.Publish(_friendId), 
+                Times.Exactly(expectedPublishEventCalls));
+            _messageDialogServiceMock.Verify(ds => ds.ShowYesNoDialog(It.IsAny<string>(),
+                It.IsAny<string>()), Times.Once);
+        }
+
+        [Fact]
+        public void ShouldDisplayCorrectMessageInDeleteDialog()
+        {
+            _viewModel.Load(_friendId);
+
+            var f = _viewModel.Friend;
+            f.FirstName = "Thomas";
+            f.LastName = "Huber";
+
+            _viewModel.DeleteCommand.Execute(null);
+
+            _messageDialogServiceMock.Verify(d => d.ShowYesNoDialog("Delete Friend",
+                $"Do you really want to delete the friend '{f.FirstName} {f.LastName}'?"),
+                Times.Once);
         }
     }
 }

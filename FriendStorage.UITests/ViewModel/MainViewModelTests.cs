@@ -18,6 +18,7 @@ namespace FriendStorage.UITests.ViewModel
         private Mock<INavigationViewModel> _navigationViewModelMock;
         private Mock<IEventAggregator> _eventAggregatorMock;
         private OpenFriendEditViewEvent _openFriendEditViewEvent;
+        private FriendDeletedEvent _friendDeletedEvent;
         private MainViewModel _viewModel;
         private List<Mock<IFriendEditViewModel>> _friendEditViewModelMocks;
 
@@ -26,10 +27,13 @@ namespace FriendStorage.UITests.ViewModel
             _friendEditViewModelMocks = new List<Mock<IFriendEditViewModel>>();
             _navigationViewModelMock = new Mock<INavigationViewModel>();
             _openFriendEditViewEvent = new OpenFriendEditViewEvent();
-            _eventAggregatorMock = new Mock<IEventAggregator>();
+            _friendDeletedEvent = new FriendDeletedEvent();
 
+            _eventAggregatorMock = new Mock<IEventAggregator>();
             _eventAggregatorMock.Setup(ea => ea.GetEvent<OpenFriendEditViewEvent>())
                 .Returns(_openFriendEditViewEvent);
+            _eventAggregatorMock.Setup(ea => ea.GetEvent<FriendDeletedEvent>())
+                .Returns(_friendDeletedEvent);
 
             _viewModel = new MainViewModel(
                 _navigationViewModelMock.Object,
@@ -115,6 +119,22 @@ namespace FriendStorage.UITests.ViewModel
             _viewModel.CloseFriendTabCommand.Execute(friendEditVm);
 
             Assert.Empty(_viewModel.FriendEditViewModels);
+        }
+         
+        [Fact]
+        public void ShouldRemoveFriendEditViewModelWhenFriendIsDeleted()
+        {
+            const int deletedFriendId = 7;
+
+            // Populating the FriendEditViewModels list on the mainViewModel.
+            _openFriendEditViewEvent.Publish(deletedFriendId);
+            _openFriendEditViewEvent.Publish(8);
+            _openFriendEditViewEvent.Publish(9);
+
+            _friendDeletedEvent.Publish(deletedFriendId);
+
+            Assert.Equal(2, _viewModel.FriendEditViewModels.Count);
+            Assert.NotEqual(deletedFriendId, _viewModel.FriendEditViewModels.First().Friend.Id);
         }
 
     }

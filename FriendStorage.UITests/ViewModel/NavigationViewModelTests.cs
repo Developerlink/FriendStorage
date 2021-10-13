@@ -14,16 +14,17 @@ namespace FriendStorage.UITests.ViewModel
     {
         private NavigationViewModel _viewModel;
         private FriendSavedEvent _friendSavedEvent;
+        private FriendDeletedEvent _friendDeletedEvent;
 
         public NavigationViewModelTests()
         {
-            // Creating a real event instead of a mock because we want to
-            // call the publish method on that event in the test to see if
-            // we are subscribing to this event
             _friendSavedEvent = new FriendSavedEvent();
+            _friendDeletedEvent = new FriendDeletedEvent();
             var eventAggregatorMock = new Mock<IEventAggregator>();
             eventAggregatorMock.Setup(ea => ea.GetEvent<FriendSavedEvent>())
                 .Returns(_friendSavedEvent);
+            eventAggregatorMock.Setup(ea => ea.GetEvent<FriendDeletedEvent>())
+                .Returns(_friendDeletedEvent);
 
             var navigationDataProviderMock = new Mock<INavigationDataProvider>();
             navigationDataProviderMock.Setup(dp => dp.GetAllFriends()).Returns(new List<LookUpItem>
@@ -106,6 +107,24 @@ namespace FriendStorage.UITests.ViewModel
             var addedItem = _viewModel.Friends.SingleOrDefault(f => f.Id == newFriendId);
             Assert.NotNull(addedItem);
             Assert.Equal("Anna Huber", addedItem.DisplayMember);
+        }
+
+        [Fact]
+        public void ShouldRemoveNavigationItemWhenFriendIsDeleted()
+        {
+            _viewModel.Load();
+
+            // Grab the id of an existing Friend.
+            var deletedFriendId = _viewModel.Friends.First().Id;
+
+            // Publish a FriendDeletedEvent with that id.
+            _friendDeletedEvent.Publish(deletedFriendId);
+
+            // We know in our mockup that we have 2 items.
+            // After deletion we should have only 1.
+            Assert.Equal(1, _viewModel.Friends.Count);
+            // Checking that the correct friend was deleted.
+            Assert.NotEqual(deletedFriendId, _viewModel.Friends.Single().Id);
         }
     }
 

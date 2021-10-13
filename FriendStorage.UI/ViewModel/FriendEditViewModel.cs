@@ -1,10 +1,12 @@
 ﻿using FriendStorage.Model;
 using FriendStorage.UI.Command;
 using FriendStorage.UI.DataProvider;
+using FriendStorage.UI.Dialogs;
 using FriendStorage.UI.Events;
 using FriendStorage.UI.Wrapper;
 using Prism.Events;
 using System;
+using System.Windows;
 using System.Windows.Input;
 
 namespace FriendStorage.UI.ViewModel
@@ -19,15 +21,21 @@ namespace FriendStorage.UI.ViewModel
     {
         private IFriendDataProvider _friendDataProvider;
         private readonly IEventAggregator _eventAggregator;
+        private readonly IMessageDialogService _messageDialogService;
 
-        public FriendEditViewModel(IFriendDataProvider friendDataProvider, IEventAggregator eventAggregator)
+        public FriendEditViewModel(IFriendDataProvider friendDataProvider, 
+            IEventAggregator eventAggregator,
+            IMessageDialogService messageDialogService)
         {
             _friendDataProvider = friendDataProvider;
             _eventAggregator = eventAggregator;
+            _messageDialogService = messageDialogService;
             SaveCommand = new DelegateCommand(OnSaveExecute, OnSaveCanExecute);
+            DeleteCommand = new DelegateCommand(OnDeleteExecute, OnDeleteCanExecute);
+        } 
 
-        }
 
+        public ICommand DeleteCommand { get; set; }
         public ICommand SaveCommand { get; set; }
         private FriendWrapper _friend;
 
@@ -45,18 +53,24 @@ namespace FriendStorage.UI.ViewModel
         {
             var friend = friendId.HasValue
                 ? _friendDataProvider.GetFriendById(friendId.Value)
-                : new Friend();            
+                : new Friend();
 
             Friend = new FriendWrapper(friend);
 
             Friend.PropertyChanged += Friend_PropertyChanged;
 
-            ((DelegateCommand)SaveCommand).RaiseCanExecuteChanged();
+            InvalidateCommands();
         }
 
         private void Friend_PropertyChanged(object sender, System.ComponentModel.PropertyChangedEventArgs e)
         {
+            InvalidateCommands();
+        }
+
+        private void InvalidateCommands()
+        {
             ((DelegateCommand)SaveCommand).RaiseCanExecuteChanged();
+            ((DelegateCommand)DeleteCommand).RaiseCanExecuteChanged();
         }
 
         private void OnSaveExecute(object obj)
@@ -70,6 +84,22 @@ namespace FriendStorage.UI.ViewModel
         private bool OnSaveCanExecute(object arg)
         {
             return Friend != null && Friend.IsChanged;
+        }
+
+        private void OnDeleteExecute(object obj)
+        {
+            var result = _messageDialogService.ShowYesNoDialog("Delete Friend",
+                $"Do you really want to delete the friend '{Friend.FirstName} {Friend.LastName}'?");
+            if (result == MessageDialogResult.Yes)
+            {
+                _friendDataProvider.DeleteFriend(Friend.Id);
+                _eventAggregator.GetEvent<FriendDeletedEvent>().Publish(Friend.Id);
+            } 
+        }
+
+        private bool OnDeleteCanExecute(object arg)
+        {
+            return Friend != null && Friend.Id > 0;
         }
     }
 }
